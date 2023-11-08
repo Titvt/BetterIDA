@@ -1,7 +1,6 @@
 from ida_idaapi import PLUGIN_KEEP, plugin_t
 from ida_kernwin import (
-    AST_DISABLE_FOR_WIDGET,
-    AST_ENABLE_FOR_WIDGET,
+    AST_ENABLE_ALWAYS,
     BWN_PSEUDOCODE,
     LROEF_CPS_RANGE,
     SETMENU_APP,
@@ -9,6 +8,7 @@ from ida_kernwin import (
     action_desc_t,
     action_handler_t,
     attach_action_to_menu,
+    get_widget_type,
     line_rendering_output_entry_t,
     refresh_custom_viewer,
     register_action,
@@ -24,7 +24,7 @@ class IndentRainbowUIHooks(UI_Hooks):
         self.enabled = True
 
     def get_lines_rendering_info(self, out, widget, info):
-        if not self.enabled:
+        if not self.enabled or get_widget_type(widget) != BWN_PSEUDOCODE:
             return
 
         for i in info.sections_lines:
@@ -41,20 +41,19 @@ class IndentRainbowUIHooks(UI_Hooks):
 
 
 class IndentRainbowActionHandler(action_handler_t):
-    def __init__(self, ui_hooks):
+    def __init__(self):
         action_handler_t.__init__(self)
-        self.ui_hooks = ui_hooks
+        self.ui_hooks = IndentRainbowUIHooks()
+        self.ui_hooks.hook()
 
     def activate(self, ctx):
         self.ui_hooks.enabled = not self.ui_hooks.enabled
-        refresh_custom_viewer(ctx.widget)
+
+        if ctx.widget_type == BWN_PSEUDOCODE:
+            refresh_custom_viewer(ctx.widget)
 
     def update(self, ctx):
-        return (
-            AST_ENABLE_FOR_WIDGET
-            if ctx.widget_type == BWN_PSEUDOCODE
-            else AST_DISABLE_FOR_WIDGET
-        )
+        return AST_ENABLE_ALWAYS
 
 
 class BetterIDA(plugin_t):
@@ -62,13 +61,11 @@ class BetterIDA(plugin_t):
     flags = PLUGIN_KEEP
 
     def init(self):
-        indent_rainbow_ui_hooks = IndentRainbowUIHooks()
-        indent_rainbow_ui_hooks.hook()
         register_action(
             action_desc_t(
                 "IndentRainbow",
                 "Enable/Disable Indent Rainbow",
-                IndentRainbowActionHandler(indent_rainbow_ui_hooks),
+                IndentRainbowActionHandler(),
                 "Shift+Alt+R",
             )
         )
@@ -78,7 +75,7 @@ class BetterIDA(plugin_t):
             SETMENU_APP,
         )
         print("[+] BetterIDA Plugin Loaded Successfully!")
-        print("[+] Version: 1.0")
+        print("[+] Version: 1.1")
         print("[+] Author: @Titvt")
         return PLUGIN_KEEP
 
