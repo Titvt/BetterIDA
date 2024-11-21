@@ -29,15 +29,21 @@ class IndentRainbowUIHooks(UI_Hooks):
 
         for i in info.sections_lines:
             for j in i:
-                t = tag_remove(j.line)
-                l = len(t) - len(t.lstrip())
-                n = 0
+                line = tag_remove(j.line)
+                length = len(line) - len(line.lstrip())
+                indent = 0
 
-                while n * 2 < l:
-                    c = INDENT_RAINBOW_COLORS[n % len(INDENT_RAINBOW_COLORS)]
-                    e = line_rendering_output_entry_t(j, n * 2, 2, LROEF_CPS_RANGE, c)
-                    out.entries.push_back(e)
-                    n += 1
+                while indent * 2 < length:
+                    color = INDENT_RAINBOW_COLORS[indent % len(INDENT_RAINBOW_COLORS)]
+                    entry = line_rendering_output_entry_t(
+                        j,
+                        indent * 2,
+                        min(length - indent * 2, 2),
+                        LROEF_CPS_RANGE,
+                        color,
+                    )
+                    out.entries.push_back(entry)
+                    indent += 1
 
 
 class IndentRainbowActionHandler(action_handler_t):
@@ -51,6 +57,8 @@ class IndentRainbowActionHandler(action_handler_t):
 
         if ctx.widget_type == BWN_PSEUDOCODE:
             refresh_custom_viewer(ctx.widget)
+
+        return 0
 
     def update(self, ctx):
         return AST_ENABLE_ALWAYS
@@ -75,14 +83,14 @@ class BetterIDA(plugin_t):
             SETMENU_APP,
         )
         print("[+] BetterIDA Plugin Loaded Successfully!")
-        print("[+] Version: 1.1")
+        print("[+] Version: 1.2")
         print("[+] Author: @Titvt")
         return PLUGIN_KEEP
 
-    def term(self):
+    def run(self, arg):
         pass
 
-    def run(self, arg):
+    def term(self):
         pass
 
 

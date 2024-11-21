@@ -1,2 +1,7 @@
+.vscode
 ida_*.py
-_ida_*.pyd
+idaapi.py
+idadex.py
+idautils.py
+idc.py
+init.py
