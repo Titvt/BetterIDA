@@ -1,3 +1,4 @@
+from ida_hexrays import decompile
 from ida_idaapi import PLUGIN_KEEP, plugin_t
 from ida_kernwin import (
     AST_ENABLE_ALWAYS,
@@ -14,6 +15,8 @@ from ida_kernwin import (
     register_action,
 )
 from ida_lines import tag_remove
+from ida_segment import get_segm_class, getseg
+from idautils import Functions, Segments
 
 INDENT_RAINBOW_COLORS = [0x40FF9E40, 0x403AC267, 0x403CA2E6, 0x406C6CF5]
 
@@ -64,26 +67,78 @@ class IndentRainbowActionHandler(action_handler_t):
         return AST_ENABLE_ALWAYS
 
 
+PSEUDO_SEARCH_DECOMPILATIONS = []
+
+
+def redecompile():
+    PSEUDO_SEARCH_DECOMPILATIONS.clear()
+    functions = []
+
+    for i in Segments():
+        segment = getseg(i)
+
+        if get_segm_class(segment) == "CODE":
+            for j in Functions(segment.start_ea, segment.end_ea):
+                functions.append(j)
+
+    while True:
+        done = True
+
+        for i in functions[:]:
+            decompilation = decompile(i)
+
+            if decompilation is None:
+                continue
+
+            PSEUDO_SEARCH_DECOMPILATIONS.append((i, str(decompilation)))
+            functions.remove(i)
+            done = False
+
+        if done:
+            break
+
+
+class PseudoSearchActionHandler(action_handler_t):
+    def __init__(self):
+        action_handler_t.__init__(self)
+
+    def activate(self, ctx):
+        redecompile()
+        print(PSEUDO_SEARCH_DECOMPILATIONS)
+        return 0
+
+    def update(self, ctx):
+        return AST_ENABLE_ALWAYS
+
+
+def register_menu(name, label, handler, shortcut):
+    register_action(action_desc_t(name, label, handler, shortcut))
+    attach_action_to_menu(
+        f"Edit/BetterIDA/{name}",
+        name,
+        SETMENU_APP,
+    )
+
+
 class BetterIDA(plugin_t):
     wanted_name = "BetterIDA"
     flags = PLUGIN_KEEP
 
     def init(self):
-        register_action(
-            action_desc_t(
-                "IndentRainbow",
-                "Enable/Disable Indent Rainbow",
-                IndentRainbowActionHandler(),
-                "Shift+Alt+R",
-            )
-        )
-        attach_action_to_menu(
-            "Edit/BetterIDA/IndentRainbow",
+        register_menu(
             "IndentRainbow",
-            SETMENU_APP,
+            "Indent Rainbow",
+            IndentRainbowActionHandler(),
+            "Shift+R",
+        )
+        register_menu(
+            "PseudoSearch",
+            "Pseudo Search",
+            PseudoSearchActionHandler(),
+            "Shift+F",
         )
         print("[+] BetterIDA Plugin Loaded Successfully!")
-        print("[+] Version: 1.2")
+        print("[+] Version: 1.3")
         print("[+] Author: @Titvt")
         return PLUGIN_KEEP
 
